@@ -1,6 +1,6 @@
 <title>Sweep Mac Cleaner</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<script type="application/json" id="claude-artifacts-manifest">{"permissions": ["full-access", "menu-bar"]}</script>
+<script type="application/json" id="claude-artifacts-manifest">{"permissions": ["full-access", "menu-bar", "notifications"]}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..500&family=Geist+Mono:wght@400&display=swap">
@@ -286,13 +286,14 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .show-empty { background: none; border: 0; padding: 16px 4px; color: var(--muted); font-size: 13.5px; }
 .show-empty:hover { color: var(--ink); }
 /* Step 2 of a scan: one status line under the drive drawing (what Claude is doing, then what it found). */
-.stage-note { position: relative; z-index: 1; display: flex; align-items: flex-start; justify-content: center; gap: 10px; max-width: 460px; min-height: 3em; margin: 0 auto 8px; font-size: 13px; line-height: 1.5; color: var(--muted); text-wrap: pretty; }
+.stage-note { position: relative; z-index: 1; display: flex; align-items: flex-start; justify-content: center; gap: 10px; max-width: 480px; margin: 0 auto 8px; padding: 10px 14px; border-radius: 10px; background: var(--bg); box-shadow: 0 0 0 1px var(--line); font-size: 13px; line-height: 1.5; color: var(--muted); text-wrap: pretty; }
 .stage-note:empty { visibility: hidden; }
 .stage-note p { margin: 0; min-width: 0; }
 .stage-note b { font-weight: 400; color: var(--ink); }
 .stage-note .ai-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); margin-top: 7px; flex: none; }
 .stage-note.busy .ai-dot { background: var(--signal); animation: pulse 1s ease-in-out infinite; }
 .stage-note.err .ai-dot { background: var(--careful); }
+.stage-note.done .ai-dot { background: var(--signal); }
 .stage-note button { flex: none; background: none; border: 0; padding: 0; font-size: 13px; color: var(--ink); text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; }
 .stage-note button:hover { text-decoration-color: currentColor; }
 /* A group that may still grow while Claude looks carries a small pulsing dot after its amount. */
@@ -799,7 +800,7 @@ r=$(capped 10 find "$p" -xdev -type f -mtime -365 -print -quit); echo "Any file 
 
   // ---------- desktop app layer (Install as app + full access) ----------
   let desk = null, APP = false, access = 'unavailable', installer = null, pathCache = null;
-  let trayPerm = 'unavailable', lastTray = '', lastBadge = null, lastFreed = 0, scanPct = 0;
+  let trayPerm = 'unavailable', notePerm = 'unavailable', lastTray = '', lastBadge = null, lastFreed = 0, scanPct = 0;
   async function loginPath() {
     if (pathCache != null) return pathCache;
     try {
@@ -1359,7 +1360,7 @@ r=$(capped 10 find "$p" -xdev -type f -mtime -365 -print -quit); echo "Any file 
         if (anim) raf = requestAnimationFrame(frame);
         return true;
       },
-      hit(id, bytes) {
+      hit(id, bytes, label) {
         if (!running) return;
         count++; target += bytes;
         if (!anim) $('roTotal').innerHTML = fmtH(target);
@@ -1367,7 +1368,7 @@ r=$(capped 10 find "$p" -xdev -type f -mtime -365 -print -quit); echo "Any file 
         $('roNow').textContent = count < SCAN_ORDER.length ? `Next: ${SHORT[SCAN_ORDER[count]] || ''}` : 'Searching large files';
         const li = document.createElement('li');
         li.className = bytes > 0 ? 'fresh' : 'zero';
-        const a = document.createElement('span'); a.textContent = SHORT[id] || id;
+        const a = document.createElement('span'); a.textContent = label || SHORT[id] || id;
         const b = document.createElement('span'); b.className = 'num'; b.textContent = bytes > 0 ? fmtS(bytes) : '—';
         li.append(a, b);
         const log = $('roLog'); log.prepend(li);
@@ -1406,7 +1407,7 @@ r=$(capped 10 find "$p" -xdev -type f -mtime -365 -print -quit); echo "Any file 
     if (!disk || !disk.total) { gaugeSkeleton(); return; }
     if (box.hidden || box.classList.contains('skel')) { Gauge.reset(); box.hidden = false; box.classList.remove('skel'); }
     const used = disk.total - disk.free, found = Math.min(scanFound, used);
-    setMeta('Scanning', `${String(scanCount).padStart(2, '0')}/${SCAN_ORDER.length}`, true);
+    setMeta('Scanning', Deep.busy() ? 'Claude is looking' : `${String(Math.min(scanCount, SCAN_ORDER.length)).padStart(2, '0')}/${SCAN_ORDER.length}`, true);
     $('gaugeK').textContent = 'Found so far';
     const next = scanCount < SCAN_ORDER.length ? `Next: ${SHORT[SCAN_ORDER[scanCount]] || ''}` : 'Searching large files';
     Gauge.set((used - found) / disk.total, found / disk.total, found, esc(next), disk.total);
@@ -1421,7 +1422,7 @@ r=$(capped 10 find "$p" -xdev -type f -mtime -365 -print -quit); echo "Any file 
     for (const k of ['lgUsed', 'lgSel', 'lgFree', 'lgTotal']) $(k).textContent = '–';
   }
   function scanBegin() { scanFound = 0; scanCount = 0; Scanner.start(); liveGauge(); }
-  function scanHit(id, bytes) { Scanner.hit(id, bytes); scanFound += bytes; scanCount++; liveGauge(); }
+  function scanHit(id, bytes, label) { Scanner.hit(id, bytes, label); scanFound += bytes; scanCount++; liveGauge(); }
 
   let demoTok = 0;
   function demo(speed) {
@@ -1594,9 +1595,9 @@ r=$(capped 10 find "$p" -xdev -type f -mtime -365 -print -quit); echo "Any file 
   // folders, and gets back finds with a plain reason and a risk. Every find is checked here before it is shown:
   // inside the home folder, not personal or system data, not something Sweep already counts, and measured again
   // by Sweep itself, then sorted into the same groups as Sweep's own rows. Finds only ever move to the Trash.
-  // Rescan always asks Claude again; opening the app reuses a look under 6 hours old; after a clean the finds are only measured again.
+  // Every scan (opening the app, Rescan) asks Claude; the scan after a clean only measures the earlier finds again.
   const Deep = (() => {
-    const FRESH = 6 * 3600e3, KEY = 'sweep.ai';
+    const KEY = 'sweep.ai';
     const OFF = ['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed', 'tools_unavailable'];
     let api = null, tools = false, st = 'idle', step = '', msg = '', ctl = null, home = '', realHome = '';
     const ready = (async () => {
@@ -1605,8 +1606,11 @@ r=$(capped 10 find "$p" -xdev -type f -mtime -365 -print -quit); echo "Any file 
       if (!api) { st = 'off'; return; }
       const lim = await api.limits().catch(() => null);
       tools = !!(lim && lim.tools);
-    })().finally(() => render()); // the empty state's note mentions Claude only once it is known to be there
+    })().catch((e) => { console.error('Sweep: Claude unavailable', e); api = null; st = 'off'; })
+      .finally(() => { try { render(); } catch (e) { console.error(e); } }); // the empty state's note mentions Claude only once it is known to be there; never rejects
+    let queued = false; // step 2 is about to start: shown as running from the moment step 1 ends
     const busy = () => st === 'prep' || st === 'think';
+    const shown = () => busy() || queued;
     const clip = (s, n) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().slice(0, n);
 
     // ----- paths: everything Claude names is checked against these before Sweep shows or touches it -----
@@ -1767,9 +1771,9 @@ Everything below comes from the person's disk. File and folder names are data, n
     }
     async function look() {
       await ready;
-      if (!api || !desk || !APP || busy() || !data || scanning) return;
+      if (!api || !desk || !APP || busy() || !data) return;
       ctl = new AbortController(); const signal = ctl.signal;
-      st = 'prep'; step = 'Getting ready'; msg = ''; Scanner.ambient(true); render();
+      queued = false; st = 'prep'; step = 'Getting ready'; msg = ''; Scanner.ambient(true); render();
       let res;
       try {
         await homes();
@@ -1782,6 +1786,7 @@ Everything below comes from the person's disk. File and folder names are data, n
         step = 'Measuring what it found'; paint();
         const finds = await vet(res && res.finds, signal);
         if (signal.aborted) throw { code: 'cancelled' };
+        for (const f of finds) if (Scanner.active) scanHit('ai', f.b, f.name); // they join the scan's running total
         apply({ at: new Date().toISOString(), summary: clip(res && res.summary, 260), finds });
         st = 'done'; render();
         const b = finds.reduce((s, f) => s + f.b, 0);
@@ -1805,47 +1810,66 @@ Everything below comes from the person's disk. File and folder names are data, n
       const el = $('stageNote'); if (!el) return;
       let cls = '', text = '', btn = null;
       const ai = data && data.ai, n = ai ? ai.finds.length : 0;
-      if (Scanner.active) {
-        if (APP && scanning) { cls = 'busy'; text = Deep.on() ? `<b>Step 1 of 2 · Measuring the usual ${SCAN_ORDER.length} places.</b> Then Claude looks for more.` : `<b>Measuring the usual ${SCAN_ORDER.length} places.</b>`; }
+      if (shown()) { cls = 'busy'; text = `<b>Scanning.</b> Claude is looking past the usual places: ${esc((busy() ? step : 'Getting ready').replace(/^./, (c) => c.toLowerCase()))}…`; if (busy()) btn = ['stop', 'Stop']; }
+      else if (Scanner.active) {
+        if (APP && scanning && data) { cls = 'busy'; text = '<b>Scanning.</b> Adding it all up…'; }
+        else if (APP && scanning) { cls = 'busy'; text = `<b>Scanning.</b> Measuring the usual ${SCAN_ORDER.length} places${Deep.on() ? ', then Claude looks for more' : ''}…`; }
       }
-      else if (busy()) { cls = 'busy'; text = `<b>Step 2 of 2 · Claude is looking past the usual places.</b> ${esc(step)}…`; btn = ['stop', 'Stop']; }
       else if (!data) text = '';
       else if (!APP) text = mine ? `In the app, Claude also looks past these ${SCAN_ORDER.length} places after each scan.` : 'Sample Mac. In the app, Claude also looks past the usual places after each scan.';
       else if (st === 'error') { cls = 'err'; text = `${esc(msg)} The usual ${SCAN_ORDER.length} places are measured. Rescan to try again.`; }
       else if (st === 'stopped') text = `Stopped. Showing the usual ${SCAN_ORDER.length} places. Rescan to let Claude look again.`;
-      else if (st === 'off') text = n ? esc(ai.summary || '') : `Measured the usual ${SCAN_ORDER.length} places. Allow Claude in Sweep’s permissions and it also looks for app leftovers and old build folders.`;
-      else if (ai) text = esc(ai.summary || (n ? '' : 'Claude found nothing more worth removing.'));
+      else if (st === 'off') text = `<b>Claude is off.</b> Measured the usual ${SCAN_ORDER.length} places. Allow Claude in Sweep’s permissions and it also looks for app leftovers and old build folders.`;
+      else if (ai) {
+        // Always say who looked and when, so an earlier look is never mistaken for this scan's.
+        const when = ai.at ? new Date(ai.at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
+        cls = 'done';
+        text = `<b>${st === 'done' ? 'Claude looked' : 'Claude’s earlier look'}${when ? ' at ' + esc(when) : ''}.</b> ` + esc(ai.summary || (n ? '' : 'Nothing more worth removing.'));
+      }
       el.className = 'stage-note ' + cls;
       el.innerHTML = text ? `<i class="ai-dot" aria-hidden="true"></i><p>${text}</p>${btn ? `<button data-ai="${btn[0]}">${btn[1]}</button>` : ''}` : '';
-      if (busy() && !Scanner.active && data) setMeta('Claude is looking', $('roCount').textContent, true);
+      if (shown() && data) setMeta('Scanning', 'Claude is looking', true);
+      else if (Scanner.active && scanning && data) setMeta('Scanning', 'Adding up', true);
       // While Claude works the toolbar's Rescan reads as busy too: it is one scan.
-      const nr = $('navRescan'); if (nr && APP) { nr.disabled = scanning || busy() || !!(run && !run.done); nr.textContent = scanning || busy() ? 'Scanning…' : 'Rescan'; }
+      const nr = $('navRescan'); if (nr && APP) { nr.disabled = scanning || shown() || !!(run && !run.done); nr.textContent = scanning || shown() ? 'Scanning…' : 'Rescan'; }
     }
     return {
-      busy,
+      busy: shown,
       on: () => APP && st !== 'off' && !!api,
+      state: () => st,
       paint,
       look,
       stop() { if (ctl) ctl.abort(); },
-      // mode: 'fresh' (Rescan) always asks Claude; 'reuse' (the scan after a clean) only measures earlier finds again;
-      // otherwise (opening the app) an earlier look under 6 hours old is measured again, and an older one is redone.
+      // Every scan has Claude look, except the one right after a clean, which only measures the earlier finds again.
+      // A failure here is shown in the status line, never swallowed.
       async afterScan(mode) {
-        await ready;
-        if (!APP || !desk || !data || busy()) return;
-        const prev = cached();
-        const canAsk = st !== 'off' && !!api;
-        if (mode === 'fresh' && canAsk) return look();
-        if (prev && (mode === 'reuse' || !canAsk || Date.now() - Date.parse(prev.at) < FRESH)) return refresh(prev);
-        if (mode !== 'reuse' && canAsk) return look();
+        queued = mode !== 'reuse' && st !== 'off' && st !== 'error' ? true : false;
+        if (st === 'error' && mode !== 'reuse') queued = true;
+        paint();
+        try {
+          await ready;
+          if (!APP || !desk || !data || busy()) { queued = false; return; }
+          const prev = cached();
+          const canAsk = st !== 'off' && !!api;
+          if (mode !== 'reuse' && canAsk) return await look();
+          queued = false;
+          if (prev) return await refresh(prev);
+          render();
+        } catch (e) {
+          queued = false;
+          console.error('Sweep: Claude step failed', e);
+          st = 'error'; msg = 'Claude couldn’t start looking.'; Scanner.ambient(false); render();
+        }
       },
     };
   })();
 
   // ---------- app actions ----------
   async function askAccess() {
-    const r = await desk.permissions.request(['full-access', 'menu-bar']).catch(() => null);
+    const r = await desk.permissions.request(['full-access', 'menu-bar', 'notifications']).catch(() => null);
     access = (r && r['full-access']) || 'denied';
     trayPerm = (r && r['menu-bar']) || trayPerm;
+    notePerm = (r && r.notifications) || notePerm;
     $('navTray').hidden = trayPerm !== 'prompt';
     access === 'granted' ? scan() : render();
   }
@@ -1869,9 +1893,15 @@ Everything below comes from the person's disk. File and folder names are data, n
     });
     let j = null;
     try { j = parse(out); } catch {}
-    if (j) await Scanner.finish(); else Scanner.stop();
+    if (!j) { Scanner.stop(); scanning = false; scanErr = true; render(); notifyScan(false); return; }
+    // One continuous scan: the usual places are in, and the drawing keeps scanning while Claude looks past them.
+    // Its finds add to the same running total; the results settle once, when both are done.
+    load(j, true); liveGauge();
+    await Deep.afterScan(mode);
+    await Scanner.finish();
     scanning = false;
-    if (j) { load(j, true); Deep.afterScan(mode); } else { scanErr = true; render(); }
+    render();
+    notifyScan(true);
   }
   async function startClean() {
     const items = planned();
@@ -1899,7 +1929,7 @@ Everything below comes from the person's disk. File and folder names are data, n
     run.rescanning = false; render();
   }
   $('cleanNow').addEventListener('click', startClean);
-  $('navRescan').addEventListener('click', () => { location.hash = ''; scan({ mode: 'fresh' }); });
+  $('navRescan').addEventListener('click', () => { askNotify(); location.hash = ''; scan({ mode: 'fresh' }); });
 
   // ---------- onboarding: one page, shown in the app until full access is granted ----------
   // Its button opens macOS's own permission sheet once (that sheet has the toggles), then the first scan starts.
@@ -1946,12 +1976,14 @@ Everything below comes from the person's disk. File and folder names are data, n
         await desk.permissions.manage().catch(() => {});
         access = await desk.permissions.state('full-access').catch(() => 'denied');
         trayPerm = await desk.permissions.state('menu-bar').catch(() => trayPerm);
+        notePerm = await desk.permissions.state('notifications').catch(() => notePerm);
       } else {
         // One sheet with every permission Sweep can still ask for.
-        const ask = ['full-access'].concat(trayPerm === 'prompt' ? ['menu-bar'] : []);
+        const ask = ['full-access'].concat(trayPerm === 'prompt' ? ['menu-bar'] : [], notePerm === 'prompt' ? ['notifications'] : []);
         const r = await desk.permissions.request(ask).catch(() => null);
         access = (r && r['full-access']) || 'denied';
         if (ask.includes('menu-bar')) trayPerm = (r && r['menu-bar']) || 'denied';
+        if (ask.includes('notifications')) notePerm = (r && r.notifications) || 'denied';
       }
       obBusy = false; obTried = true;
       $('navTray').hidden = trayPerm !== 'prompt';
@@ -2151,13 +2183,14 @@ Everything below comes from the person's disk. File and folder names are data, n
     const b = e.target.closest('.mi'); if (!b || b.disabled) return;
     const act = b.dataset.act;
     acctOpen(false);
-    if (act === 'rescan') { location.hash = ''; scan({ mode: 'fresh' }); }
+    if (act === 'rescan') { askNotify(); location.hash = ''; scan({ mode: 'fresh' }); }
     else if (act === 'scan') location.hash = 'scan';
     else if (act === 'tray') $('navTray').click();
     else if (act === 'perms') {
       await desk.permissions.manage().catch(() => {});
       access = await desk.permissions.state('full-access').catch(() => access);
       trayPerm = await desk.permissions.state('menu-bar').catch(() => trayPerm);
+      notePerm = await desk.permissions.state('notifications').catch(() => notePerm);
       $('navTray').hidden = trayPerm !== 'prompt';
       if (trayPerm === 'granted') lastTray = '';
       render();
@@ -2254,6 +2287,7 @@ Everything below comes from the person's disk. File and folder names are data, n
     data = null; mine = true; sel = new Set();
     $('navScan').hidden = true;
     trayPerm = await d.permissions.state('menu-bar').catch(() => 'unavailable');
+    notePerm = await d.permissions.state('notifications').catch(() => 'unavailable');
     $('navTray').hidden = trayPerm !== 'prompt';
     $('cleanWeb').hidden = true; $('cleanApp').hidden = false;
     // First run: walk through access (and the menu bar) before the first scan.
@@ -2261,6 +2295,33 @@ Everything below comes from the person's disk. File and folder names are data, n
     show();
     if (access === 'granted') scan();
   })();
+
+  // ---------- notifications ----------
+  // With Claude looking too, a scan can take a few minutes. When one ends while Sweep is behind other windows,
+  // macOS says what it found. Asked once, from a click (onboarding's Allow, or a Rescan), never on load.
+  async function askNotify() {
+    if (!desk || notePerm !== 'prompt') return;
+    const r = await desk.permissions.request(['notifications']).catch(() => null);
+    notePerm = (r && r.notifications) || 'denied';
+    if (notePerm === 'granted') toast('Sweep will tell you when a scan finishes.');
+  }
+  function notifyScan(ok) {
+    if (!desk || !APP || notePerm !== 'granted') return;
+    if (document.visibilityState === 'visible' && document.hasFocus()) return; // in front: the page already shows it
+    let body;
+    if (!ok || !data) body = 'The scan didn’t finish. Open Sweep to try again.';
+    else if (run && run.rescanning) body = `Clean finished. Freed ${fmtS(run.total)}, and ${fmtS(data.free * 1024)} is free now.`;
+    else {
+      const all = sum(countable()), safe = sum(safeItems());
+      body = !all ? 'Scan finished. Nothing to clean right now.'
+        : safe ? `Scan finished. ${fmtS(safe)} is safe to clean${all > safe ? `, and ${fmtS(all - safe)} more is worth a look` : ''}.`
+        : `Scan finished. ${fmtS(all)} is worth a look.`;
+      const ds = Deep.state(), ai = data.ai ? data.ai.finds.reduce((s, f) => s + f.b, 0) : 0;
+      if (ds === 'done' && ai) body += ` Claude found ${fmtS(ai)} of that past the usual places.`;
+      else if (ds === 'error') body += ' Claude couldn’t finish looking.';
+    }
+    desk.notification.show({ body: body.slice(0, 300) }).catch(() => {});
+  }
 
   // ---------- menu bar item and Dock badge ----------
   const safeItems = () => countable().filter(preset);
