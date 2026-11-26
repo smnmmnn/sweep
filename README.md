@@ -1,37 +1,41 @@
 # Sweep
 
-A Mac disk cleaner built as a single Claude artifact page: `sweep.html`.
+A Mac disk cleaner as a Claude artifact
 
-**Get it:** paste this repo's link into Claude and ask it to build Sweep. Claude publishes `sweep.html` as an artifact in your account, following [CLAUDE.md](CLAUDE.md). Then open it in the Claude desktop app on a Mac, choose **Install as app** from the artifact's menu, and open Sweep from the Dock.
+## Install
 
-- **In a browser or Claude's artifact panel** it shows how to install Sweep as a Mac app from the Claude desktop app.
-- **Installed as a Mac app**, it asks once for full disk access, then scans and cleans by itself. It can also show in the menu bar and send notifications.
+Paste this into Claude:
 
-## Scanning
+```
+Build me https://github.com/smnmmnn/sweep
+```
 
-One scan, shown as one: a drawing of the Mac's drive, one status line under it with Stop (then Continue), and one clock.
+1. Open the artifact in the Claude desktop app on a Mac.
+2. Choose **Install as app** from the artifact's menu.
+3. Open Sweep from the Dock. It asks once for full disk access.
 
-- Sweep measures 19 places where space builds up (caches, logs, Xcode, simulators, package caches, Docker, old downloads and more) while it maps the home folder.
-- Claude then looks past them for app leftovers, caches and old build folders. Sweep checks and measures every find itself.
-- Results land in the sidebar: a gauge for the disk and what cleaning frees, and the items in three groups, Caches and logs, Developer and Large files.
+Sweep only works as an installed app on macOS.
 
-## Cleaning
+## Compatibility
 
-Clean opens one dialog: how much is deleted directly and how much goes to the Trash, where it can be restored.
+You need:
 
-- **Clean up** moves what it can to the Trash. Steps that are a tool's own command (npm, pnpm, simulators, Go modules, Docker) can't use the Trash and always delete. Claude's finds always go to the Trash.
-- **Delete Immediately** deletes everything directly, Claude's finds included.
-- The dialog shows one progress bar, then closes, and dust and a wiper play over the page. The results update from what the clean did, with no second scan: cleaned items drop out, what went to the Trash counts toward "Empty the Trash", and the free space is the clean's own last reading.
-- When a scan or clean finishes while Sweep is in the background, it sends a notification.
+- A Mac, Apple Silicon or Intel.
+- The Claude desktop app to install Sweep as an app.
+- Full disk access for Sweep.
 
-## Files
+## What it does
 
-- `sweep.html` is the whole app: markup, styles, the scan and clean shell scripts, and the page's code.
+**Scan.** Sweep checks the usual places where space piles up: caches, logs, Xcode and simulators, package caches, Docker, and old downloads. Then Claude looks for more, such as app leftovers and old build folders. Sweep double-checks everything Claude finds. Results are grouped into three categories: Caches and logs, Developer, and Large files.
 
-## Publishing
+**Clean.** Pick one:
 
-The page is published as a Claude artifact. Changes are made in `sweep.html` and published again to the same artifact from Claude. The installed app offers a reload when a new version is published.
+- **Clean up** moves files to the Trash, so you can get them back. A few caches (npm, pnpm, simulators, Go modules, Docker) get cleared by their own tool instead, so those are gone for good.
+  
+- **Delete Immediately** deletes everything.
 
-## Notes for the app
+Sweep can live in the menu bar, and it tells you when a scan or clean finishes in the background.
 
-- The window's drag areas come from CSS `app-region` rules. The Claude app copies every element such a rule matches into window-drag areas that sit above the whole page, dialogs included, and those areas take clicks and hover. Keep the selectors narrow: the toolbar is `nav.top`, because the drive drawing's SVG faces are also class `top`.
+## Development
+
+The whole app is `sweep.html`. There is no build step.
