@@ -2,6 +2,8 @@
 
 A Mac disk cleaner built as a single Claude artifact page: `sweep.html`.
 
+**Get it:** paste this repo's link into Claude and ask it to build Sweep. Claude publishes `sweep.html` as an artifact in your account, following [CLAUDE.md](CLAUDE.md). Then open it in the Claude desktop app on a Mac, choose **Install as app** from the artifact's menu, and open Sweep from the Dock.
+
 - **In a browser or Claude's artifact panel** it shows how to install Sweep as a Mac app from the Claude desktop app.
 - **Installed as a Mac app**, it asks once for full disk access, then scans and cleans by itself. It can also show in the menu bar and send notifications.
 
