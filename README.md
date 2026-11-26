@@ -26,9 +26,9 @@ You need:
 
 ## What it does
 
-**Scan.** Sweep checks the usual places where space piles up: caches, logs, Xcode and simulators, package caches, Docker, and old downloads. Then Claude looks for more, such as app leftovers and old build folders. Sweep double-checks everything Claude finds. Results are grouped into three categories: Caches and logs, Developer, and Large files.
+**Scan:** Sweep checks the usual places where space piles up: caches, logs, Xcode and simulators, package caches, Docker, and old downloads. Then Claude looks for more, such as app leftovers and old build folders. Sweep double-checks everything Claude finds. Results are grouped into three categories: Caches and logs, Developer, and Large files.
 
-**Clean.** Pick one:
+**Clean:**
 
 - **Clean up** moves files to the Trash, so you can get them back. A few caches (npm, pnpm, simulators, Go modules, Docker) get cleared by their own tool instead, so those are gone for good.
   
